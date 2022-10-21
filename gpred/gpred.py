@@ -96,15 +96,14 @@ def find_stop(stop_regex, sequence, start):  # Attention a return match.end !!!
 def has_shine_dalgarno(shine_regex, sequence, start, max_shine_dalgarno_distance):
     """Find a shine dalgarno motif before the start codon
     """
-    p = max(0, start - max_shine_dalgarno_distance)
-    p2 = start - 6
-    match = shine_regex.finditer(sequence, p, start)
-    for i in match: 
-        if i.end(0) < p2:
+
+    match = shine_regex.finditer(sequence, max(
+        0, start - max_shine_dalgarno_distance), start)
+    for i in match:
+        if i.end(0) < start - 6:
             return True
         return False
     return False
-
 
 
 def predict_genes(sequence, start_regex, stop_regex, shine_regex,
@@ -121,15 +120,14 @@ def predict_genes(sequence, start_regex, stop_regex, shine_regex,
             stop = find_stop(stop_regex, sequence, start)
             if stop is not None:
                 l = len(sequence[start:stop])
-                if  l >= min_gene_len:
+                if l >= min_gene_len:
                     if has_shine_dalgarno(shine_regex, sequence, start, max_shine_dalgarno_distance):
-                        gene_list.append([start + 1 , stop + 3])
+                        gene_list.append([start + 1, stop + 3])
                         start = min_gap + stop + 2  # Stop = position 1ère lettre du codon
                     start += 1
                 start += 1
             start += 1
     return gene_list
-
 
 
 def write_genes_pos(predicted_genes_file, probable_genes):
@@ -180,30 +178,31 @@ def main():
     """
     Main program function
     """
-    # Gene detection over genome involves to consider a thymine instead of
-    # an uracile that we would find on the expressed RNA
-    #start_codons = ['TTG', 'CTG', 'ATT', 'ATG', 'GTG']
-    #stop_codons = ['TAA', 'TAG', 'TGA']
+    # Initialize necessary data
+    args = get_arguments()
     start_regex = re.compile('AT[TG]|[ATCG]TG')
     stop_regex = re.compile('TA[GA]|TGA')
-    # Shine AGGAGGUAA
-    # AGGA ou GGAGG
     shine_regex = re.compile('A?G?GAGG|GGAG|GG.{1}GG')
-    # Arguments
-    #args = get_arguments()
-    # Let us do magic in 5' to 3'
-
-    # Don't forget to uncomment !!!
-    # Call these function in the order that you want
-    # We reverse and complement
-    #sequence_rc = reverse_complement(sequence)
-    # Call to output functions
-    #write_genes_pos(args.predicted_genes_file, probable_genes)
-    #write_genes(args.fasta_file, sequence, probable_genes, sequence_rc, probable_genes_comp)
-    seq = read_fasta("/home/sdv/m2bi/aly/Metagenomic/geneprediction-tp/data/listeria.fna")
+    seq = read_fasta(args.genome_file)
+    
+    
+    seq = seq.replace("U", "T")
     list = []
-    list = predict_genes(seq, start_regex, stop_regex, shine_regex, 50, 16, 40)
-    print(list)
+    probable_genes = predict_genes(seq, start_regex, stop_regex, shine_regex, 
+    args.min_gene_len, args.max_shine_dalgarno_distance, args.min_gap)
+
+
+    # We reverse and complement
+    sequence_rc = reverse_complement(seq)
+    probable_genes_comp = predict_genes(sequence_rc, start_regex, stop_regex, shine_regex, 
+    args.min_gene_len, args.max_shine_dalgarno_distance, args.min_gap)
+
+    # Call to output functions
+    write_genes_pos(args.predicted_genes_file, probable_genes)
+    write_genes(args.fasta_file, seq, probable_genes, sequence_rc, probable_genes_comp)
+
+
 if __name__ == '__main__':
     main()
+
 
