@@ -4,6 +4,7 @@ import os
 import csv
 import re
 
+# Arnaud LY
 
 def isfile(path):
     """Check if path is an existing file.
